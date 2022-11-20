@@ -17,3 +17,14 @@ def store(request, category_slug=None):
         'products': products,
         'product_counts': product_counts
     })
+
+
+def product_detail(request, category_slug, product_slug):
+
+    try:
+        product = Product.objects.get(category__slug=category_slug, slug=product_slug)
+    except Exception as e:
+        raise e        
+    return render(request, 'store/product_detail.html', context={
+        'product': product
+    })
