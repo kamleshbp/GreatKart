@@ -6,14 +6,19 @@ from django.http import HttpResponse
 tax_percentage = 18
 
 def cart(request):
-
-    cart = Cart.objects.get(cart_id=get_current_cart(request))
-    cart_items = CartItem.objects.filter(cart=cart)
-    total = 0
-    for cart_item in cart_items:
-        total += cart_item.product.price * cart_item.quantity
-    tax = tax_percentage * total / 100
-    grand_total = total + tax
+    
+    total, tax, grand_total = 0, 0, 0
+    try:
+        cart = Cart.objects.get(cart_id=get_current_cart(request))
+        cart_items = CartItem.objects.filter(cart=cart)
+        total = 0
+        for cart_item in cart_items:
+            total += cart_item.product.price * cart_item.quantity
+        tax = tax_percentage * total / 100
+        grand_total = total + tax
+    except Cart.DoesNotExist:
+        cart_items = []
+    
     context = {
         'cart_items': cart_items,
         'total': total,
