@@ -1,9 +1,21 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from store.models import Product
+from store.models import Product, Variation
 from .models import Cart, CartItem
 from django.http import HttpResponse
 # Create your views here.
 tax_percentage = 18
+
+def getVariations(data, product):
+    
+    product_variations = []
+    for key, val in data.items():
+
+        try:
+            variation = Variation.objects.get(product=product, variation_category__iexact=key, variation_value__iexact=val)
+            product_variations.append(variation)
+        except:
+            pass
+    return product_variations
 
 def cart(request):
     
@@ -38,6 +50,9 @@ def get_current_cart(request):
 def add_to_cart(request, product_id):
 
     product = Product.objects.get(id=product_id)
+    product_variations = []
+    if request.method == 'POST':
+        product_variations = getVariations(request.POST, product)
 
     try:
         cart = Cart.objects.get(cart_id=get_current_cart(request))
@@ -46,36 +61,68 @@ def add_to_cart(request, product_id):
             cart_id=get_current_cart(request),
         )
         cart.save()
+        
+    item_in_cart = CartItem.objects.filter(product=product, cart=cart)
+    if item_in_cart:
 
-    try:
-        cart_item = CartItem.objects.get(product=product, cart=cart)
-    except CartItem.DoesNotExist:
-        cart_item = CartItem.objects.create(
-            product=product,
-            cart=cart,
-            quantity=0
-        )
+        items = CartItem.objects.filter(product=product, cart=cart)
 
-    cart_item.quantity += 1
-    cart_item.save()
+        for item in items:
+
+            variation = item.variation.all()
+            if list(variation) == product_variations:
+                item.quantity += 1
+                item.save()
+                return redirect('cart')
+    
+    item = CartItem.objects.create(
+        product=product,
+        cart=cart,
+        quantity=1,
+    )
+    for variation in product_variations:
+        item.variation.add(variation)
+    item.save()
+
     return redirect('cart')
 
 def subtract_quantity(request, product_id):
 
-    cart = Cart.objects.get(cart_id=get_current_cart(request))
     product = get_object_or_404(Product, id=product_id)
-    cart_item = CartItem.objects.get(cart=cart, product=product)
-    if cart_item.quantity > 1:
-        cart_item.quantity -= 1
-        cart_item.save()
-    else:
-        cart_item.delete()
+    product_variations = []
+    if request.method == 'POST':
+        product_variations = getVariations(request.POST, product)
+    
+    cart = Cart.objects.get(cart_id=get_current_cart(request))
+    items = CartItem.objects.filter(product=product, cart=cart)
+
+    for item in items:
+
+        variation = item.variation.all()
+        if list(variation) == product_variations:
+            item.quantity -= 1
+            if item.quantity == 0:
+                item.delete()
+            else:
+                item.save()
+            break
     return redirect('cart')
 
 def remove_from_cart(request, product_id):
 
-    cart = Cart.objects.get(cart_id=get_current_cart(request))
     product = get_object_or_404(Product, id=product_id)
-    cart_item = CartItem.objects.get(cart=cart, product=product)
-    cart_item.delete()
+    product_variations = []
+    if request.method == 'POST':
+        product_variations = getVariations(request.POST, product)
+    
+    cart = Cart.objects.get(cart_id=get_current_cart(request))
+    
+    items = CartItem.objects.filter(product=product, cart=cart)
+
+    for item in items:
+
+        variation = item.variation.all()
+        if list(variation) == product_variations:
+            item.delete()
+            break
     return redirect('cart')

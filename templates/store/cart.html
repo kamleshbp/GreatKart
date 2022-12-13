@@ -36,23 +36,38 @@
                 <div class="aside"><img src="{{ cart_item.product.images.url }}" class="img-sm"></div>
                 <figcaption class="info">
                     <a href="{{cart_item.product.get_url}}" class="title text-dark">{{ cart_item.product.product_name }}</a>
-                    <p class="text-muted small">Matrix: 25 Mpx <br> Brand: Canon</p>
+                    <p class="text-muted small">
+                        {% for variation in cart_item.variation.all %}
+                            {{ variation.variation_category | capfirst }}: {{ variation.variation_value | capfirst }} </br>
+                        {% endfor %}
+                    </p>
                 </figcaption>
             </figure>
         </td>
         <td> 
-            <!-- col.// -->
-                        <div class="col"> 
-                            <div class="input-group input-spinner">
-                                <div class="input-group-prepend">
-                                <a href="{% url 'subtract_quantity' cart_item.product.id %}" class="btn btn-light" type="button" id="button-plus"> <i class="fa fa-minus"></i> </a>
-                                </div>
-                                <input type="text" class="form-control"  value="{{ cart_item.quantity }}">
-                                <div class="input-group-append">
-                                <a href="{% url 'add_to_cart' cart_item.product.id %}" class="btn btn-light" type="button" id="button-minus"> <i class="fa fa-plus"></i> </a>
-                                </div>
-                            </div> <!-- input-group.// -->
-                        </div> <!-- col.// -->
+            <div class="col"> 
+                <div class="input-group input-spinner">
+                    <div class="input-group-prepend">
+                        <form action="{% url 'subtract_quantity' cart_item.product.id %}" method="post">
+                            {% csrf_token %}
+                            {% for variation in cart_item.variation.all %}
+                                <input type="hidden" name="{{ variation.variation_category }}" value="{{ variation.variation_value }}">
+                            {% endfor %}
+                            <button type="submit" class="btn btn-light" id="button-minus"> <i class="fa fa-minus"></i> </button>
+                        </form>
+                    </div>
+                    <input type="text" class="form-control"  value="{{ cart_item.quantity }}">
+                    <div class="input-group-append">
+                        <form action="{% url 'add_to_cart' cart_item.product.id %}" method="post">
+                            {% csrf_token %}
+                            {% for variation in cart_item.variation.all %}
+                                <input type="hidden" name="{{ variation.variation_category }}" value="{{ variation.variation_value }}">
+                            {% endfor %}
+                            <button type="submit" class="btn btn-light" id="button-plus"> <i class="fa fa-plus"></i> </button>
+                        </form>
+                    </div>
+                </div> <!-- input-group.// -->
+            </div> <!-- col.// -->
         </td>
         <td> 
             <div class="price-wrap"> 
@@ -61,7 +76,13 @@
             </div> <!-- price-wrap .// -->
         </td>
         <td class="text-right"> 
-        <a href="{% url 'remove_from_cart' cart_item.product.id %}" class="btn btn-danger"> Remove</a>
+            <form action="{% url 'remove_from_cart' cart_item.product.id %}" method="post">
+                {% csrf_token %}
+                {% for variation in cart_item.variation.all %}
+                    <input type="hidden" name="{{ variation.variation_category }}" value="{{ variation.variation_value }}">
+                {% endfor %}
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to remove this item ?')"> Remove </button>
+            </form>
         </td>
     </tr>
     {% endfor %}

@@ -5,7 +5,11 @@
 <!-- ========================= SECTION PAGETOP ========================= -->
 <section class="section-pagetop bg">
     <div class="container">
-        <h2 class="title-page">Our Store</h2>
+        {% if 'search' in request.path %}
+            <h2 class="title-page">Search Results</h2>
+        {% else %}
+            <h2 class="title-page">Our Store</h2>
+        {% endif %}
         
     </div> <!-- container //  -->
     </section>
