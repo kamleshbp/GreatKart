@@ -12,7 +12,22 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
+
+from django.http import HttpResponse
 # Create your views here.
+
+def send_email_with_token(request, subject, user, email, email_template):
+
+    current_site = get_current_site(request)
+    body = render_to_string(email_template, {
+        'user': user,
+        'domain': current_site,
+        'uid' : urlsafe_base64_encode(force_bytes(user.pk)),
+        'token': default_token_generator.make_token(user)
+    })
+    to_email = email
+    send_email = EmailMessage(subject=subject, body=body, to=[to_email])
+    send_email.send(fail_silently=True)
 
 def register(request):
 
@@ -30,18 +45,10 @@ def register(request):
         # messages.success(request, 'Registration Successfull!')
 
         # Send confirmation email
+        email_template = 'accounts/account_activation_email.html'
+        subject = 'Please activate your account'
+        send_email_with_token(request=request, subject=subject, user=user, email=email,email_template=email_template)
 
-        current_site = get_current_site(request)
-        mail_subject = 'Please activate your account'
-        body = render_to_string('accounts/account_activation_email.html', {
-            'user': user,
-            'domain': current_site,
-            'uid' : urlsafe_base64_encode(force_bytes(user.pk)),
-            'token': default_token_generator.make_token(user)
-        })
-        to_email = email
-        send_email = EmailMessage(subject=mail_subject, body=body, to=[to_email])
-        send_email.send(fail_silently=True)
         # messages.success(request, 'Email is sent for your account verification.')
         return redirect(reverse('login') + f'?command=validate&email={email}')
 
@@ -98,3 +105,67 @@ def activate(request, uidb64, token):
 def dashboard(request):
 
     return render(request, 'accounts/dashboard.html')
+
+
+def forgot_password(request):
+
+
+    if request.method == 'POST':
+
+        email = request.POST['email']
+
+        if Account.objects.filter(email=email).exists():
+            user = Account.objects.get(email=email)
+            email_template = 'accounts/reset_password_email.html'
+            subject = 'Reset your password'
+            send_email_with_token(request=request, subject=subject, user=user, email=email,email_template=email_template)
+            messages.success(request, 'Reset password link has been shared on your email address.')
+            return redirect('login')
+        else:
+            messages.error(request, 'Invalid email address.')
+            return redirect('forgot_password')
+
+    return render(request, 'accounts/forgot_password.html')
+
+
+def validate_reset_password(request, uidb64, token):
+
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = Account.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, Account.DoesNotExist):
+        user = None
+    if user and default_token_generator.check_token(user, token):
+        request.session['uid'] = uid
+        messages.success(request, 'Please reset your password')
+        return redirect('reset_password')
+    else:
+        messages.error(request, 'The reset password link has been expired!')
+        return redirect('login')
+
+
+def reset_password(request):
+
+    if request.method == 'POST':
+        
+        if 'uid' not in request.session:
+            messages.error(request, "Please enter your email to reset your password.")
+            return redirect('forgot_password')
+
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if password == confirm_password:
+
+            uid = request.session.get('uid')
+            request.session.pop('uid')
+            user = Account.objects.get(pk=uid)
+            user.set_password(password)
+            user.save()
+            messages.success(request, 'Your password has been updated')
+            return redirect('login')
+        else:
+            messages.error(request, 'Your password does not match')
+            return redirect('reset_password')
+
+    return render(request, 'accounts/reset_password.html')
