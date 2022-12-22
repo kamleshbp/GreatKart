@@ -13,7 +13,10 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 
-from django.http import HttpResponse
+from django.http import HttpResponse, QueryDict
+
+from cart.models import Cart, CartItem
+from cart.views import get_current_cart
 # Create your views here.
 
 def send_email_with_token(request, subject, user, email, email_template):
@@ -67,8 +70,35 @@ def login(request):
         user = auth.authenticate(request, email=email, password=password)
 
         if user:
+            
+            cart_item_exists = CartItem.objects.filter(cart__cart_id=get_current_cart(request)).exists()
+            
+            # Moving the current cart_items to logged in user's cart
+            if cart_item_exists:
+                current_cart_items = CartItem.objects.filter(cart__cart_id=get_current_cart(request))
+                existing_cart_items = CartItem.objects.filter(user=user)
+                for current_cart_item in current_cart_items:
+                    current_product_variations = list(current_cart_item.variation.all())
+                    existing_products = existing_cart_items.filter(product=current_cart_item.product)
+                    existing_product_variations = []
+                    for existing_product in existing_products:
+                        if list(existing_product.variation.all()) == current_product_variations:
+                            existing_product.quantity += current_cart_item.quantity
+                            existing_product.save()
+                            break
+                    else:
+                        current_cart_item.user = user
+                        current_cart_item.save()
+
             auth.login(request, user)
-            messages.success(request, 'You are now logged in.')   
+            messages.success(request, 'You are now logged in.')
+            try:
+                url = request.META['HTTP_REFERER']
+                query =  QueryDict(url.split('?')[1])
+                if 'next' in query:
+                    return redirect(query['next'])
+            except:
+                pass
             return redirect('dashboard')
         else:
             messages.error(request, 'Invalid Login Credentials.')
