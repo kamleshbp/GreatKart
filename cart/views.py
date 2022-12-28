@@ -47,19 +47,16 @@ def cart(request):
 def checkout(request):
     
     total, tax, grand_total = 0, 0, 0
-    try:
-        if request.user.is_authenticated:
-            cart_items = CartItem.objects.filter(user=request.user)
-        else:
-            cart = Cart.objects.get(cart_id=get_current_cart(request))
-            cart_items = CartItem.objects.filter(cart=cart)
-        total = 0
-        for cart_item in cart_items:
-            total += cart_item.product.price * cart_item.quantity
-        tax = tax_percentage * total / 100
-        grand_total = total + tax
-    except Cart.DoesNotExist:
-        cart_items = []
+    cart_items = CartItem.objects.filter(user=request.user)
+    
+    if not cart_items.exists():
+        return redirect('store')
+
+    total = 0
+    for cart_item in cart_items:
+        total += cart_item.product.price * cart_item.quantity
+    tax = tax_percentage * total / 100
+    grand_total = total + tax
     
     context = {
         'cart_items': cart_items,
