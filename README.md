@@ -13,6 +13,6 @@ It is a Ecommerce website based on Django framework, which is having below menti
 
 - After purchasing a product, the User can provide the Product review as well.
 
-Below are some Images of the website.
+Below is the homepage of the website. You can find all other screenshots in screenshots folder.
 
 ![Homepage](./screenshots/homepage.png?raw=true)
