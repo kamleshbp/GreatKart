@@ -15,4 +15,4 @@ It is a Ecommerce website based on Django framework, which is having below menti
 
 Below are some Images of the website.
 
-![alt text](./homepage.png?raw=true)
+![Homepage](./screenshots/homepage.png?raw=true)
